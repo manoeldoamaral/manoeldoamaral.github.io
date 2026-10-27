@@ -11,6 +11,9 @@ Usage:
 
   # export (reads STRAVA_CLIENT_ID / STRAVA_CLIENT_SECRET / STRAVA_REFRESH_TOKEN)
   python strava_swim_stickers.py export --days 99 --out swims
+
+  # macOS: also add new stickers to a Photos album
+  python strava_swim_stickers.py export --import-to-photos
 """
 
 import argparse
@@ -19,6 +22,7 @@ import json
 import math
 import os
 import re
+import subprocess
 import sys
 import time
 import urllib.parse
@@ -172,6 +176,27 @@ def render_sticker(activity, path, font_path=None, color=(255, 255, 255, 255)):
     img.save(path)
 
 
+# AppleScript run by osascript; argv is the album name followed by PNG paths.
+PHOTOS_IMPORT = """
+on run argv
+    set albumName to item 1 of argv
+    set imgs to {}
+    repeat with p in rest of argv
+        set end of imgs to (POSIX file (contents of p)) as alias
+    end repeat
+    tell application "Photos"
+        if not (exists album albumName) then make new album named albumName
+        import imgs into album albumName skip check duplicates true
+    end tell
+end run
+"""
+
+
+def import_to_photos(paths, album):
+    subprocess.run(["osascript", "-e", PHOTOS_IMPORT, album,
+                    *[os.path.abspath(p) for p in paths]], check=True)
+
+
 def slug(text):
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:40] or "swim"
 
@@ -208,20 +233,31 @@ def cmd_export(args):
     missing = [k for k, v in env.items() if not v]
     if missing:
         sys.exit("Missing environment variables: " + ", ".join(missing))
+    if args.import_to_photos and sys.platform != "darwin":
+        sys.exit("--import-to-photos only works on macOS")
 
     token = access_token(*env.values())
     after = int(time.time()) - args.days * 86400
     font_path = find_font(args.font)
     os.makedirs(args.out, exist_ok=True)
 
-    count = 0
+    count, new = 0, []
     for act in swims_since(token, after):
         day = datetime.fromisoformat(act["start_date_local"].rstrip("Z")).date()
         name = f"{day}_{act['id']}_{slug(act.get('name', ''))}.png"
-        render_sticker(act, os.path.join(args.out, name), font_path)
+        path = os.path.join(args.out, name)
+        if not os.path.exists(path):
+            new.append(path)
+        render_sticker(act, path, font_path)
         print("saved", name)
         count += 1
     print(f"{count} swim sticker(s) written to {args.out}/")
+
+    # Only import files that weren't already in --out, so re-runs don't
+    # duplicate photos.
+    if args.import_to_photos and new:
+        import_to_photos(new, args.album)
+        print(f"{len(new)} new sticker(s) added to Photos album \"{args.album}\"")
 
 
 def main():
@@ -238,6 +274,10 @@ def main():
     export.add_argument("--days", type=int, default=99)
     export.add_argument("--out", default="swims")
     export.add_argument("--font", help="path to a .ttf/.otf font (default: auto)")
+    export.add_argument("--import-to-photos", action="store_true",
+                        help="macOS: add new stickers to the Photos app")
+    export.add_argument("--album", default="Strava Swims",
+                        help="Photos album for --import-to-photos")
     export.set_defaults(func=cmd_export)
 
     args = parser.parse_args()

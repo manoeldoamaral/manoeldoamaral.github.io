@@ -31,5 +31,10 @@ export STRAVA_CLIENT_ID=... STRAVA_CLIENT_SECRET=... STRAVA_REFRESH_TOKEN=...
 python strava_swim_stickers.py export --days 99 --out swims
 ```
 
+On a Mac, add `--import-to-photos` to also put the stickers in a Photos album
+called "Strava Swims" (change it with `--album`). With iCloud Photos on, they
+sync to your iPhone, ready for Instagram Stories. macOS asks once for permission
+to control Photos. Re-runs only import swims that aren't already in `--out`.
+
 Files are named `YYYY-MM-DD_<activity id>_<name>.png`. Use `--font path/to/font.ttf`
 to pick another font. By default it uses Montserrat Bold when installed.
