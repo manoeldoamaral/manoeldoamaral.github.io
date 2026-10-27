@@ -1,0 +1,29 @@
+name: Strava swim stickers
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "How many days back to export"
+        default: "99"
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: sudo apt-get install -y fonts-montserrat && pip install pillow
+      - name: Render stickers
+        env:
+          STRAVA_CLIENT_ID: ${{ secrets.STRAVA_CLIENT_ID }}
+          STRAVA_CLIENT_SECRET: ${{ secrets.STRAVA_CLIENT_SECRET }}
+          STRAVA_REFRESH_TOKEN: ${{ secrets.STRAVA_REFRESH_TOKEN }}
+        run: python tools/strava-swim-stickers/strava_swim_stickers.py export --days "${{ inputs.days }}" --out swims
+      - uses: actions/upload-artifact@v4
+        with:
+          name: strava-swim-stickers
+          path: swims/*.png
+          retention-days: 3
