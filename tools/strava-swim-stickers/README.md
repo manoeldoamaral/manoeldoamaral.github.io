@@ -13,9 +13,15 @@ reads each swim through the API and renders an equivalent sticker.
 2. Get a refresh token with access to all activities, including private ones:
 
    ```sh
-   pip install pillow
+   python3 -m venv .venv && source .venv/bin/activate && pip install pillow
    python strava_swim_stickers.py auth --client-id <ID> --client-secret <SECRET>
    ```
+
+   Open the printed link, click Authorize, then copy the `code=` value (up to
+   the `&`) from the address bar of the page that fails to load.
+
+   On macOS, use `python3` to create the venv. Inside the activated venv,
+   `python` works.
 
 ## Run it
 
